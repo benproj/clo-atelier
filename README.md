@@ -106,8 +106,21 @@ a small bridge script, and you start it once each time you launch CLO:
 
 3. The editor's output shows `[clo-mcp] Bridge 0.1.0 listening on 127.0.0.1:9877`.
 
-The server copies the bridge script to `~/.clo-mcp/` when it first starts, so
-open your MCP client once before step 2. If the bridge isn't running, each
+On macOS there is a shortcut that does those steps for you:
+
+```sh
+bash ~/.clo-mcp/start-bridge.sh
+```
+
+It launches CLO if it isn't open, opens the Python editor, pastes the line and
+presses Run by sending clicks and keystrokes through System Events. The first
+time, macOS asks you to allow your terminal under Privacy & Security >
+Accessibility. The script replaces whatever text is in CLO's Python editor and
+borrows the clipboard for a second before putting your clipboard back. Claude
+can run it too: when the bridge is down, the tools reply with this command.
+
+The server copies the bridge and this script to `~/.clo-mcp/` when it first
+starts, so open your MCP client once before any of this. If the bridge isn't running, each
 tool answers with these instructions. To stop the bridge, press Run a second
 time or call `clo_stop_bridge`.
 

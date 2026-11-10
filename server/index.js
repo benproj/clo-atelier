@@ -19,7 +19,7 @@ import { BRIDGE_LOADER, exec, py, request } from "./bridge-client.js";
 import * as history from "./history.js";
 
 const server = new McpServer(
-  { name: "clo-atelier", version: "0.3.0" },
+  { name: "clo-atelier", version: "0.3.1" },
   {
     instructions: [
       "Controls a running CLO 3D session through its embedded Python API.",

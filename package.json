@@ -1,6 +1,6 @@
 {
   "name": "clo-atelier",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Unofficial MCP server and Claude plugin for CLO 3D: drive CLO's embedded Python API to draft, sew, simulate and export garments",
   "type": "module",
   "bin": {

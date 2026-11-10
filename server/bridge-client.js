@@ -31,6 +31,21 @@ function installBridge() {
 
 export const BRIDGE_SCRIPT = installBridge();
 
+/** On macOS, also install the script that starts the bridge by driving CLO's editor. */
+function installStarter() {
+  if (process.platform !== "darwin") return null;
+  const target = path.join(path.dirname(STATE_FILE), "start-bridge.sh");
+  try {
+    const source = fs.readFileSync(fileURLToPath(new URL("../scripts/start-bridge-macos.sh", import.meta.url)));
+    if (!fs.existsSync(target) || !fs.readFileSync(target).equals(source)) fs.writeFileSync(target, source, { mode: 0o700 });
+    return target;
+  } catch {
+    return null;
+  }
+}
+
+export const STARTER_SCRIPT = installStarter();
+
 /** One line to paste into CLO's Python Script editor to start the bridge. */
 export const BRIDGE_LOADER = `exec(open(r"${BRIDGE_SCRIPT}").read())`;
 
@@ -41,7 +56,10 @@ function notRunningMessage(detail) {
     `The CLO bridge is not reachable (${detail}).\n` +
     `Ask the user to start it inside CLO: open Edit > Python Script, paste this line and press Run:\n` +
     `  ${BRIDGE_LOADER}\n` +
-    `The editor's output should print "[clo-mcp] Bridge ... listening". It must be started again each time CLO is launched.`
+    `The editor's output should print "[clo-mcp] Bridge ... listening". It must be started again each time CLO is launched.` +
+    (STARTER_SCRIPT
+      ? `\nOn macOS you can start it yourself instead by running this in a shell (it launches CLO if needed, and needs Accessibility permission for the terminal):\n  bash "${STARTER_SCRIPT}"`
+      : "")
   );
 }
 
