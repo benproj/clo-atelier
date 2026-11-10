@@ -1,0 +1,14 @@
+{
+  "name": "clo-atelier",
+  "description": "CLO Atelier: an unofficial CLO 3D integration for Claude",
+  "owner": {
+    "name": "benproj"
+  },
+  "plugins": [
+    {
+      "name": "clo-atelier",
+      "source": "./",
+      "description": "Drive a running CLO 3D session from Claude: draft, sew, simulate, screenshot and export garments."
+    }
+  ]
+}

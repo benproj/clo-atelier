@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+# local-only: project MCP registration with an absolute path
+.mcp.json
+# local-only: reference books and personal drafting scripts
+books/
+examples/

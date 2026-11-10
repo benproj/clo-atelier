@@ -1,0 +1,31 @@
+{
+  "name": "clo-atelier",
+  "displayName": "CLO Atelier",
+  "version": "0.2.0",
+  "description": "Unofficial CLO 3D integration. Claude drafts and sews pattern pieces, assigns fabric, runs the simulation, takes screenshots and exports garments in a CLO session you have open.",
+  "author": {
+    "name": "benproj",
+    "url": "https://github.com/benproj"
+  },
+  "homepage": "https://github.com/benproj/clo-atelier",
+  "repository": "https://github.com/benproj/clo-atelier",
+  "documentationUrl": "https://github.com/benproj/clo-atelier#readme",
+  "supportUrl": "https://github.com/benproj/clo-atelier/issues",
+  "license": "MIT",
+  "keywords": [
+    "clo3d",
+    "fashion",
+    "garment",
+    "pattern-making",
+    "3d",
+    "mcp"
+  ],
+  "mcpServers": {
+    "clo3d": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/server/index.js"
+      ]
+    }
+  }
+}
