@@ -24,6 +24,22 @@ def create_pattern(points):
     return len(patterns) - 1
 
 
+def export_zpac(path):
+    with open(path, "w") as f:
+        json.dump({"patterns": patterns, "seams": seams, "fabrics": fabrics}, f)
+    return path
+
+
+def import_file(path):
+    if path.endswith(".zpac"):
+        with open(path) as f:
+            data = json.load(f)
+        patterns[:] = data["patterns"]
+        seams[:] = [tuple(s) for s in data["seams"]]
+        fabrics[:] = data["fabrics"]
+    return True
+
+
 def write_png(path):
     # 1x1 transparent PNG
     data = bytes.fromhex(
@@ -73,16 +89,20 @@ module(
     "fabric_api",
     GetFabricCount=lambda cur: len(fabrics),
     GetFabricStyleNameList=lambda: list(fabrics),
+    GetFabricInfo=lambda i: json.dumps({"name": fabrics[i]}),
+    ExportZFab=lambda path, i: write_png(path),
+    AddFabric=lambda path: fabrics.append(path) or len(fabrics) - 1,
     SetFabricName=lambda i, n: fabrics.__setitem__(i, n),
     SetFabricPBRMaterialBaseColor=lambda i, face, r, g, b, a: True,
     GetFabricName=lambda i: fabrics[i],
     GetFabricIndexForPattern=lambda i: patterns[i]["fabric"],
 )
-module("import_api", ImportFile=lambda p: True)
+module("import_api", ImportFile=import_file)
 module(
     "export_api",
     GetAvatarCount=lambda: 1, GetAvatarNameList=lambda: ["Mock Avatar"],
     ExportThumbnail3D=write_png,
+    ExportZPac=export_zpac,
 )
 
 bridge = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bridge", "clo_mcp_bridge.py")

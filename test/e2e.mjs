@@ -102,6 +102,29 @@ try {
   res = await call("clo_delete_patterns", { pattern_indices: [0, 1] });
   assert.equal(JSON.parse(textOf(res)).pattern_count, 0);
 
+  // Undo history: every change above was recorded; failed and read-only calls were not.
+  let hist = JSON.parse(textOf(await call("clo_history")));
+  assert.deepEqual(hist.undo.map((e) => e.tool), ["clo_delete_patterns", "clo_edit_fabric", "clo_edit_pattern", "clo_sew", "clo_create_patterns"]);
+  res = await call("clo_undo");
+  assert.deepEqual(JSON.parse(textOf(res)).undone, ["clo_delete_patterns"]);
+  assert.equal(JSON.parse(textOf(res)).now.patterns, 2);
+  assert.equal(JSON.parse(textOf(res)).now.seams, 2);
+  res = await call("clo_redo");
+  assert.equal(JSON.parse(textOf(res)).now.patterns, 0);
+  res = await call("clo_redo");
+  assert.match(textOf(res), /Nothing to redo/);
+  await call("clo_undo", { steps: 3 });
+  hist = JSON.parse(textOf(await call("clo_history", { checkpoint: "after sewing" })));
+  assert.equal(hist.undo[0].checkpoint, "after sewing");
+  assert.equal(hist.redo.length, 0, "a new entry discards the undone future");
+  await call("clo_delete_patterns", { pattern_indices: [0] });
+  res = await call("clo_undo", { to_checkpoint: "after sewing" });
+  assert.equal(JSON.parse(textOf(res)).now.patterns, 2);
+  res = await call("clo_undo", { to_checkpoint: "missing" });
+  assert.match(textOf(res), /No checkpoint labelled/);
+  res = await call("clo_undo", { steps: 50 });
+  assert.equal(JSON.parse(textOf(res)).now.patterns, 0, "undoing everything returns to the empty garment");
+
   // REPL behaviour: state persists, last expression is returned, stdout captured.
   await call("clo_execute_python", { code: "x = 20\nprint('hello')" });
   res = await call("clo_execute_python", { code: "print('again')\nx + 1" });

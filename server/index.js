@@ -16,9 +16,10 @@ import { z } from "zod";
 
 import { loadApiIndex, searchApi } from "./api-index.js";
 import { BRIDGE_LOADER, exec, py, request } from "./bridge-client.js";
+import * as history from "./history.js";
 
 const server = new McpServer(
-  { name: "clo-atelier", version: "0.2.0" },
+  { name: "clo-atelier", version: "0.3.0" },
   {
     instructions: [
       "Controls a running CLO 3D session through its embedded Python API.",
@@ -30,10 +31,48 @@ const server = new McpServer(
       "Sewing direction: two sewn lines must run the same way along the seam. If a seam is twisted after simulation, flip direction_b on that seam.",
       "",
       "Anything the dedicated tools do not cover: clo_search_api to find the function, then clo_execute_python to call it.",
-      "CLO's API has no undo; export a .zprj before destructive edits. Some API calls open dialogs in CLO, which block every further request until the user closes them; pass an ApiTypes options struct where an overload takes one to avoid the dialog.",
+      "Undo: every tool call that changes the project is recorded, so clo_undo steps back through them and clo_redo forward; clo_history lists them and can label a checkpoint to return to. The history holds the garment, not the avatar or scene, so export a .zprj before clo_new_project or opening another project.",
+      "Some API calls open dialogs in CLO, which block every further request until the user closes them; pass an ApiTypes options struct where an overload takes one to avoid the dialog.",
     ].join("\n"),
   },
 );
+
+// ------------------------------------------------------------ undo history
+
+// Tools that change the project. The garment is snapshotted before each of
+// these runs, which is what clo_undo restores.
+const MUTATING = new Set([
+  "clo_create_patterns", "clo_add_internal_shape", "clo_edit_pattern", "clo_copy_pattern", "clo_delete_patterns",
+  "clo_sew", "clo_simulate", "clo_add_fabric", "clo_assign_fabric", "clo_edit_fabric", "clo_colorways",
+  "clo_new_project", "clo_open_file", "clo_execute_python",
+]);
+const READ_ONLY_CALL = /^(Get|Is|Export|Check|toUtf8|stringToMD5|Currently)/;
+
+function changesProject(name, args) {
+  if (name === "clo_colorways") return Object.keys(args ?? {}).length > 0;
+  if (name === "clo_execute_python") {
+    // Skip the snapshot when every CLO API call in the code is a getter or an export.
+    const calls = [...String(args?.code ?? "").matchAll(/\b(?:utility|pattern|fabric|import|export|rest)_api\s*\.\s*(\w+)/g)];
+    return calls.some((m) => !READ_ONLY_CALL.test(m[1])) || /\b(getattr|exec|eval|globals|__import__)\b/.test(args?.code ?? "");
+  }
+  return true;
+}
+
+const registerTool = server.registerTool.bind(server);
+server.registerTool = (name, config, handler) =>
+  registerTool(
+    name,
+    config,
+    !MUTATING.has(name)
+      ? handler
+      : async (args) => {
+          const snapshotted = history.ENABLED && changesProject(name, args);
+          if (snapshotted) await history.record(name, args);
+          const out = await handler(args);
+          if (snapshotted && out?.isError) history.discardLast();
+          return out;
+        },
+  );
 
 // ---------------------------------------------------------------- helpers
 
@@ -881,6 +920,55 @@ result = {"format": ${py(a.format)}, "files": _files[:20], "file_count": len(_fi
 `,
       { timeoutMs: ms(a.timeout_s, 300) },
     );
+  }),
+);
+
+// ---------------------------------------------------------------- undo
+
+const undoArgs = {
+  steps: z.number().int().min(1).max(50).optional().describe("How many changes to step over (default 1)."),
+  to_checkpoint: z.string().optional().describe("Instead of counting steps, go back to the checkpoint with this label."),
+  force: z.boolean().optional().describe("Restore even though CLO now has a different project open than the one the history was recorded in."),
+};
+
+server.registerTool(
+  "clo_undo",
+  {
+    title: "Undo changes",
+    description:
+      "Undo the last tool call that changed the project, or several, by restoring the garment as it was before. Works for everything the tools change, including simulation, moves and deletions: patterns, seams, fabrics, colorways and the 3D drape all come back. It also discards anything the user changed by hand in CLO since that point (clo_redo brings it back). The avatar and scene are not part of the history. Restoring resets the list in CLO's own History panel.",
+    inputSchema: undoArgs,
+  },
+  tool(({ steps, to_checkpoint, force }) => history.undo({ steps, toLabel: to_checkpoint, force })),
+);
+
+server.registerTool(
+  "clo_redo",
+  {
+    title: "Redo undone changes",
+    description: "Reapply changes that clo_undo just undid. Only available until the next tool call that changes the project.",
+    inputSchema: { steps: undoArgs.steps, force: undoArgs.force },
+  },
+  tool(({ steps, force }) => history.redo({ steps, force })),
+);
+
+server.registerTool(
+  "clo_history",
+  {
+    title: "Show or mark the edit history",
+    description:
+      "List the changes that can be undone or redone, newest first, with the tool call that made each. Pass checkpoint to mark the current state with a label (for example before trying a design variation), so clo_undo can return to it by name. History covers this CLO launch and keeps the most recent 25 changes.",
+    inputSchema: {
+      checkpoint: z.string().min(1).max(60).optional().describe('Label for a checkpoint of the current state, e.g. "before sleeves".'),
+    },
+  },
+  tool(async ({ checkpoint }) => {
+    if (checkpoint !== undefined) {
+      if (!history.ENABLED) throw new Error("Undo history is switched off (CLO_MCP_HISTORY=0).");
+      await exec("pattern_api.GetPatternCount()", { timeoutMs: 15_000 }); // fail clearly if the bridge is down
+      await history.record("checkpoint", {}, checkpoint);
+    }
+    return history.list();
   }),
 );
 

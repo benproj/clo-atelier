@@ -1,7 +1,7 @@
 {
   "name": "clo-atelier",
   "displayName": "CLO Atelier",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Unofficial CLO 3D integration. Claude drafts and sews pattern pieces, assigns fabric, runs the simulation, takes screenshots and exports garments in a CLO session you have open.",
   "author": {
     "name": "benproj",
