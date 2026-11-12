@@ -88,7 +88,8 @@ Or as a plain MCP server for any client:
 
 ```sh
 git clone https://github.com/benproj/clo-atelier.git
-cd clo-atelier && npm ci
+cd clo-atelier
+npm ci
 claude mcp add clo3d -- node "$PWD/server/index.js"
 ```
 
